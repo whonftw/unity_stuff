@@ -14,21 +14,27 @@ public sealed class EventManager : Singleton<EventManager>
 {
     public delegate void EventDelegate<T>(T t) where T : IGameEvent;
     private delegate void EventDelegate(IGameEvent ev);
-
+    
+    // Holds the chain of simplified actions (that calls original delegate, see line 36) for a given IGameEvent type
     private Dictionary<System.Type, EventDelegate> m_InternalDelegates = new Dictionary<System.Type, EventDelegate>();
+    
+    // Lookup for original delegate and its simplified action counterpart
     private Dictionary<System.Delegate, EventDelegate> m_DelegateLookups = new Dictionary<System.Delegate, EventDelegate>();
 
     public void AddListener<T>(EventDelegate<T> _del) where T: IGameEvent
     {
         m_DelegateLookups.Add(_del, AddDelegate(_del));
     }
-
+    
+    // Creates a simplified action that gets added to the chain for the given type
     private EventDelegate AddDelegate<T>(EventDelegate<T> _del) where T : IGameEvent
     {
         var type = typeof(T);
         if (m_DelegateLookups.ContainsKey(_del))
             return null;
+        
         EventDelegate genericDelegate = arg => _del((T)arg);
+        
         if(m_InternalDelegates.TryGetValue(type, out EventDelegate eventDelegate))
         {
             m_InternalDelegates[type] = eventDelegate + genericDelegate;
@@ -40,6 +46,8 @@ public sealed class EventManager : Singleton<EventManager>
         return genericDelegate;
     }
 
+    // Removes the previously added action from the chain of the given type
+    // Removes the chain for the type if it has no more actions
     public void RemoveListener<T>(EventDelegate<T> _del) where T : IGameEvent
     {
         var type = typeof(T);
